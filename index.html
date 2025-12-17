@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>抽選ガラガラ</title>
+  <style>
+    :root{
+      /* 祝・福引（赤×白） */
+      --bg:#fff7f7;
+      --card:#ffffff;
+      --card2:#fff3f3;
+      --text:#3b0a0a;
+      --muted:#7a2a2a;
+      --accent:#d40000;      /* 赤 */
+      --accent2:#ffffff;     /* 白 */
+      --gold:#f2c200;        /* 金（ちょい足しで景気UP） */
+      --danger:#b30000;
+      --shadow: 0 16px 50px rgba(180,0,0,.18);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 15% 10%, rgba(212,0,0,.14), transparent 60%),
+        radial-gradient(900px 500px at 85% 20%, rgba(242,194,0,.16), transparent 55%),
+        radial-gradient(900px 500px at 50% 95%, rgba(212,0,0,.08), transparent 60%),
+        repeating-linear-gradient(45deg, rgba(212,0,0,.06), rgba(212,0,0,.06) 14px, rgba(255,255,255,.06) 14px, rgba(255,255,255,.06) 28px),
+        var(--bg);
+      min-height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .app{
+      width:min(920px, 100%);
+      background: var(--card);
+      border: 2px solid rgba(212,0,0,.20);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 18px;
+      background:
+        linear-gradient(90deg, rgba(212,0,0,.95), rgba(242,194,0,.75));
+      color:#fff;
+      border-bottom: 2px solid rgba(212,0,0,.25);
+    }
+    header h1{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: .06em;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      white-space:nowrap;
+    }
+    header h1 .badge{
+      font-size:12px;
+      padding:4px 10px;
+      border:1px solid rgba(255,255,255,.45);
+      border-radius:999px;
+      color:#fff;
+      background: rgba(255,255,255,.16);
+    }
+    .icon-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      border:1px solid rgba(255,255,255,.55);
+      background: rgba(255,255,255,.16);
+      color:#fff;
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+      user-select:none;
+      min-height:44px;
+      font-weight:700;
+    }
+    .icon-btn:hover{ background: rgba(255,255,255,.22); }
+    .icon-btn:active{ transform: translateY(1px) scale(.99); }
+    .icon-btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    main{
+      display:grid;
+      grid-template-columns: 1.2fr .9fr;
+      gap:16px;
+      padding:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
+    }
+    @media (max-width: 860px){
+      main{ grid-template-columns:1fr; }
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,243,243,.92));
+      border:2px solid rgba(212,0,0,.14);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(180,0,0,.10);
+      overflow:hidden;
+    }
+    .panel .body{ padding:16px; }
+
+    /* Slot display area */
+    .slot-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+      justify-content:center;
+      min-height: 310px;
+      padding: 14px 10px;
+    }
+    .slot-title{
+      color:var(--muted);
+      font-size:13px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:800;
+    }
+    #slot-display{
+      width:min(520px, 100%);
+      font-size: 2.1em;
+      font-weight: 900;
+      padding: 34px 18px;
+      min-height: 110px;
+      border: 3px solid rgba(212,0,0,.45);
+      border-radius: 18px;
+      background:
+        radial-gradient(16px 16px at 18px 18px, rgba(242,194,0,.55), transparent 60%),
+        radial-gradient(16px 16px at calc(100% - 18px) 18px, rgba(242,194,0,.55), transparent 60%),
+        radial-gradient(16px 16px at 18px calc(100% - 18px), rgba(242,194,0,.55), transparent 60%),
+        radial-gradient(16px 16px at calc(100% - 18px) calc(100% - 18px), rgba(242,194,0,.55), transparent 60%),
+        linear-gradient(135deg, rgba(212,0,0,.95), rgba(255,255,255,.95));
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(0,0,0,.25);
+      text-align: center;
+      transition: transform .12s ease, filter .12s ease;
+      box-shadow: 0 18px 40px rgba(180,0,0,.18);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      word-break: break-word;
+      position:relative;
+      overflow:hidden;
+    }
+    /* 福引っぽいキラキラ */
+    #slot-display::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35), transparent 70%);
+      transform: rotate(12deg) translateX(-40%);
+      animation: shine 3.2s ease-in-out infinite;
+      pointer-events:none;
+    }
+    @keyframes shine{
+      0%{ transform: rotate(12deg) translateX(-55%); opacity:.25; }
+      45%{ opacity:.45; }
+      100%{ transform: rotate(12deg) translateX(55%); opacity:.20; }
+    }
+
+    #slot-display.animating{
+      animation: shake .10s infinite;
+      filter: saturate(1.15) contrast(1.05);
+    }
+    @keyframes shake{
+      0%,100%{ transform: translateX(0); }
+      25%{ transform: translateX(-2px); }
+      75%{ transform: translateX(2px); }
+    }
+
+    #slot-display.final{
+      transform: scale(1.25);
+      transition: transform .32s cubic-bezier(.68,-.55,.265,1.55);
+      border-color: rgba(242,194,0,.95);
+    }
+    #slot-display.bounce{
+      animation: bounce .6s ease;
+    }
+    @keyframes bounce{
+      0%,100%{ transform: scale(1.25) translateY(0); }
+      50%{ transform: scale(1.35) translateY(-18px); }
+    }
+    #slot-display.glow{
+      animation: glow 1s ease-in-out infinite alternate;
+    }
+    @keyframes glow{
+      from { box-shadow: 0 0 18px rgba(242,194,0,.55), 0 0 28px rgba(212,0,0,.25); }
+      to   { box-shadow: 0 0 26px rgba(242,194,0,.80), 0 0 42px rgba(212,0,0,.35); }
+    }
+
+    .subrow{
+      width:min(520px, 100%);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .counter{
+      color:var(--muted);
+      font-size:14px;
+      font-weight:800;
+    }
+    .progress{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+    }
+    .bar{
+      width: 170px;
+      height:10px;
+      border-radius:999px;
+      background: rgba(212,0,0,.10);
+      border:1px solid rgba(212,0,0,.18);
+      overflow:hidden;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(212,0,0,.95), rgba(242,194,0,.90));
+      border-radius:999px;
+      transition: width .25s ease;
+    }
+
+    .primary-btn{
+      width:min(520px, 100%);
+      border:none;
+      cursor:pointer;
+      font-weight:900;
+      letter-spacing:.08em;
+      padding:16px 18px;
+      border-radius: 14px;
+      color: #ffffff;
+      background: linear-gradient(90deg, #d40000, #ff3b3b, #f2c200);
+      box-shadow: 0 16px 35px rgba(180,0,0,.22);
+      transition: transform .08s ease, filter .2s ease, opacity .2s ease;
+      min-height: 54px;
+      font-size: 16px;
+      position:relative;
+      overflow:hidden;
+    }
+    .primary-btn::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35), transparent 70%);
+      transform: rotate(12deg) translateX(-55%);
+      transition: transform .2s ease;
+      pointer-events:none;
+    }
+    .primary-btn:hover{ filter: brightness(1.05); }
+    .primary-btn:hover::after{ transform: rotate(12deg) translateX(55%); }
+    .primary-btn:active{ transform: translateY(1px) scale(.99); }
+    .primary-btn[disabled]{ opacity:.60; cursor:not-allowed; }
+
+    #result-area{
+      width:min(520px, 100%);
+      min-height: 62px;
+      border-radius: 14px;
+      border:2px dashed rgba(212,0,0,.22);
+      background: rgba(212,0,0,.04);
+      padding: 12px 14px;
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      line-height:1.5;
+      font-weight:800;
+    }
+    #result-area strong{ font-size: 1.08em; color: var(--accent); }
+
+    /* History panel */
+    .panel-title{
+      padding:14px 16px;
+      border-bottom:2px solid rgba(212,0,0,.12);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: linear-gradient(90deg, rgba(212,0,0,.08), rgba(242,194,0,.08));
+    }
+    .panel-title h2{
+      margin:0;
+      font-size:16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      white-space:nowrap;
+      color: var(--accent);
+      font-weight:900;
+      letter-spacing:.04em;
+    }
+    .hint{ color:var(--muted); font-size:12px; font-weight:800; }
+    .history{
+      max-height: 420px;
+      overflow:auto;
+      padding: 10px 16px 16px;
+    }
+    .history ol{
+      margin:0;
+      padding-left: 22px;
+    }
+    .history li{
+      padding: 8px 10px;
+      margin: 6px 0;
+      border-radius: 12px;
+      background: rgba(212,0,0,.04);
+      border:1px solid rgba(212,0,0,.12);
+      font-weight:800;
+    }
+    .empty{
+      color:var(--muted);
+      font-size:14px;
+      padding: 14px 8px;
+      font-weight:800;
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left:50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      background: rgba(212,0,0,.92);
+      border:1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      box-shadow: 0 16px 40px rgba(180,0,0,.28);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 9999;
+      font-size: 13px;
+      font-weight:800;
+      letter-spacing:.03em;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* Dialog (settings) */
+    dialog{
+      width:min(720px, 92vw);
+      border:none;
+      border-radius: 18px;
+      padding:0;
+      background: #fff;
+      color:var(--text);
+      box-shadow: var(--shadow);
+      border:2px solid rgba(212,0,0,.20);
+    }
+    dialog::backdrop{
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(4px);
+    }
+    .dlg-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 14px 16px;
+      border-bottom:2px solid rgba(212,0,0,.12);
+      background: linear-gradient(90deg, rgba(212,0,0,.10), rgba(242,194,0,.10));
+    }
+    .dlg-header h3{
+      margin:0;
+      font-size:16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:900;
+      color: var(--accent);
+      letter-spacing:.04em;
+    }
+    .dlg-body{ padding: 14px 16px 16px; }
+    .field-label{
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:8px;
+      font-weight:900;
+    }
+    textarea{
+      width:100%;
+      min-height: 240px;
+      resize: vertical;
+      border-radius: 14px;
+      border:2px solid rgba(212,0,0,.14);
+      background: rgba(212,0,0,.03);
+      color: var(--text);
+      padding: 12px 12px;
+      font-size: 16px;
+      line-height: 1.45;
+      outline:none;
+      font-weight:800;
+    }
+    textarea:focus{
+      border-color: rgba(212,0,0,.55);
+      box-shadow: 0 0 0 4px rgba(212,0,0,.14);
+    }
+    .dlg-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      margin-top: 12px;
+    }
+    .btn{
+      border:2px solid rgba(212,0,0,.18);
+      background: rgba(212,0,0,.03);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor:pointer;
+      min-height:44px;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+      font-weight:900;
+      letter-spacing:.03em;
+    }
+    .btn:hover{ background: rgba(212,0,0,.06); border-color: rgba(212,0,0,.28); }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn.primary{
+      background: linear-gradient(90deg, #d40000, #ff3b3b, #f2c200);
+      color: #fff;
+      border:none;
+    }
+    .btn.danger{
+      background: rgba(179,0,0,.07);
+      border-color: rgba(179,0,0,.30);
+      color: #6b0000;
+    }
+    .divider{
+      height:2px;
+      background: rgba(212,0,0,.10);
+      margin: 14px 0;
+    }
+
+    /* Confetti */
+    .confetti{
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      animation: confetti-fall 3s linear forwards;
+      pointer-events:none;
+      z-index: 9998;
+      opacity: 0.95;
+      border-radius: 2px;
+    }
+    @keyframes confetti-fall{
+      0%{
+        transform: translateY(-110vh) rotate(0deg);
+        opacity: 1;
+      }
+      100%{
+        transform: translateY(110vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="抽選ガラガラ">
+    <header>
+      <h1>抽選ガラガラ <span class="badge">福引モード</span></h1>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定を開く">⚙ 設定</button>
+    </header>
+
+    <main>
+      <section class="panel" aria-label="抽選">
+        <div class="body slot-wrap">
+          <div class="slot-title">🎰 SLOT DISPLAY</div>
+
+          <div id="slot-display" aria-live="polite">準備OK</div>
+
+          <div class="subrow">
+            <div class="counter" id="counterText">残り: -人 / 全-人</div>
+            <div class="progress">
+              <span id="percentText">0%</span>
+              <span class="bar" aria-hidden="true"><i id="barFill"></i></span>
+            </div>
+          </div>
+
+          <button id="drawBtn" class="primary-btn" type="button">抽選する!</button>
+
+          <div id="result-area" aria-live="polite">
+            <span>⚙で参加者を設定して、<strong>抽選する!</strong> を押すだけ。景気よく当てよう。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="当選履歴">
+        <div class="panel-title">
+          <h2>📋 当選履歴</h2>
+          <div class="hint" id="historyHint">上から順に記録</div>
+        </div>
+        <div class="history">
+          <ol id="historyList"></ol>
+          <div id="historyEmpty" class="empty">まだ当選者はいません。</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settingsDialog">
+    <div class="dlg-header">
+      <h3>参加者設定</h3>
+      <button id="closeDialogBtn" class="icon-btn" type="button" aria-label="閉じる">×</button>
+    </div>
+
+    <div class="dlg-body">
+      <div class="field-label">参加者リスト（1行1名）</div>
+      <textarea id="participantsTextarea" placeholder="例）
+山田太郎
+佐藤花子
+鈴木次郎"></textarea>
+
+      <div class="dlg-actions">
+        <button id="saveBtn" class="btn primary" type="button">保存</button>
+        <button id="cancelBtn" class="btn" type="button">キャンセル</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="dlg-actions" style="justify-content:space-between;">
+        <div class="hint">当選履歴だけリセット（参加者は残る）</div>
+        <button id="resetBtn" class="btn danger" type="button">抽選をリセット</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEYS = { participants: 'participants', winners: 'winners' };
+
+    const defaultParticipants = [
+      "山田太郎","佐藤花子","鈴木次郎","田中一郎","高橋美咲",
+      "伊藤健","小林彩","加藤大輔","吉田葵","山本悠真",
+      "中村愛","渡辺翔","山口優","松本凛","井上蓮",
+      "木村茜","林海斗","清水美優","斎藤颯","森陽菜"
+    ];
+
+    const appState = {
+      allParticipants: [],
+      winners: [],
+      get remainingParticipants() {
+        return this.allParticipants.filter(p => !this.winners.includes(p));
+      }
+    };
+
+    function loadData(){
+      try{
+        const sp = localStorage.getItem(STORAGE_KEYS.participants);
+        const sw = localStorage.getItem(STORAGE_KEYS.winners);
+
+        if (sp) {
+          const parsed = JSON.parse(sp);
+          appState.allParticipants = Array.isArray(parsed) ? parsed : [];
+        } else {
+          appState.allParticipants = [...defaultParticipants];
+        }
+
+        if (sw) {
+          const parsed = JSON.parse(sw);
+          appState.winners = Array.isArray(parsed) ? parsed : [];
+        } else {
+          appState.winners = [];
+        }
+
+        appState.winners = appState.winners.filter(w => appState.allParticipants.includes(w));
+      }catch(e){
+        appState.allParticipants = [...defaultParticipants];
+        appState.winners = [];
+      }
+    }
+
+    function saveData(){
+      localStorage.setItem(STORAGE_KEYS.participants, JSON.stringify(appState.allParticipants));
+      localStorage.setItem(STORAGE_KEYS.winners, JSON.stringify(appState.winners));
+    }
+
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsDialog = document.getElementById('settingsDialog');
+    const closeDialogBtn = document.getElementById('closeDialogBtn');
+    const participantsTextarea = document.getElementById('participantsTextarea');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const drawBtn = document.getElementById('drawBtn');
+    const slotDisplay = document.getElementById('slot-display');
+    const resultArea = document.getElementById('result-area');
+
+    const counterText = document.getElementById('counterText');
+    const historyList = document.getElementById('historyList');
+    const historyEmpty = document.getElementById('historyEmpty');
+    const percentText = document.getElementById('percentText');
+    const barFill = document.getElementById('barFill');
+
+    const toast = document.getElementById('toast');
+
+    function toastShow(msg){
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.remove('show'), 1600);
+    }
+
+    function normalizeParticipants(text){
+      const lines = text.split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      const seen = new Set();
+      const out = [];
+      for (const name of lines){
+        if (!seen.has(name)){
+          seen.add(name);
+          out.push(name);
+        }
+      }
+      return out;
+    }
+
+    function updateUI(){
+      const total = appState.allParticipants.length;
+      const remaining = appState.remainingParticipants.length;
+      counterText.textContent = `残り: ${remaining}人 / 全${total}人`;
+
+      const done = total === 0 ? 0 : Math.min(appState.winners.length / total, 1);
+      const pct = Math.round(done * 100);
+      percentText.textContent = `${pct}%`;
+      barFill.style.width = `${pct}%`;
+
+      historyList.innerHTML = '';
+      if (appState.winners.length === 0){
+        historyEmpty.style.display = 'block';
+      } else {
+        historyEmpty.style.display = 'none';
+        appState.winners.forEach((name, idx) => {
+          const li = document.createElement('li');
+          li.textContent = `${idx + 1}. ${name}`;
+          historyList.appendChild(li);
+        });
+      }
+
+      if (appState.allParticipants.length === 0){
+        drawBtn.textContent = '参加者を設定してね';
+      } else if (appState.remainingParticipants.length === 0){
+        drawBtn.textContent = '全員当選済み';
+      } else if (!isAnimating){
+        drawBtn.textContent = appState.winners.length === 0 ? '抽選する!' : 'もう一度抽選';
+      }
+    }
+
+    function lockUI(){
+      drawBtn.disabled = true;
+      drawBtn.textContent = '抽選中...';
+      settingsBtn.disabled = true;
+    }
+    function unlockUI(){
+      drawBtn.disabled = false;
+      settingsBtn.disabled = false;
+      updateUI();
+    }
+
+    function easeOut(t){
+      return 1 - (1 - t) * (1 - t);
+    }
+    function generateIntervals(totalIterations, speedMultiplier=1.0){
+      const intervals = [];
+      const fastPhase = 20;
+      for (let i = 0; i < totalIterations; i++){
+        if (i < fastPhase){
+          intervals.push(Math.floor(50 * speedMultiplier));
+        } else {
+          const t = (i - fastPhase) / (totalIterations - fastPhase);
+          const eased = easeOut(t);
+          const interval = (50 + eased * 450) * speedMultiplier;
+          intervals.push(Math.floor(interval));
+        }
+      }
+      return intervals;
+    }
+
+    function getRandomName(list){
+      const idx = Math.floor(Math.random() * list.length);
+      return list[idx];
+    }
+
+    function displayName(name, isFinal){
+      slotDisplay.textContent = name;
+      if (isFinal){
+        slotDisplay.classList.add('final','bounce','glow');
+        slotDisplay.classList.remove('animating');
+      } else {
+        slotDisplay.classList.remove('final','bounce','glow');
+      }
+    }
+
+    function showConfetti(){
+      const count = 70;
+      for (let i=0; i<count; i++){
+        const c = document.createElement('div');
+        c.className = 'confetti';
+
+        const size = 6 + Math.random() * 8;
+        c.style.width = `${size}px`;
+        c.style.height = `${size}px`;
+        c.style.left = `${Math.random() * 100}vw`;
+        c.style.top = `${-10 - Math.random() * 30}vh`;
+
+        // 福引カラー寄り（赤/白/金っぽいHSL）
+        const pick = Math.random();
+        if (pick < 0.55) c.style.background = 'hsl(0 90% 55%)';       // 赤
+        else if (pick < 0.80) c.style.background = 'hsl(0 0% 98%)';   // 白
+        else c.style.background = 'hsl(48 95% 55%)';                  // 金
+
+        const dur = 2.2 + Math.random() * 1.6;
+        c.style.animationDuration = `${dur}s`;
+
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), (dur * 1000) + 200);
+      }
+    }
+
+    function drawWinner(){
+      const remaining = appState.remainingParticipants;
+
+      if (appState.allParticipants.length === 0){
+        return { error: '参加者を設定してください' };
+      }
+      if (remaining.length === 0){
+        return { error: '全員が当選しました！リセットしますか？', done: true };
+      }
+
+      const winner = getRandomName(remaining);
+      appState.winners.push(winner);
+      return { winner };
+    }
+
+    function escapeHtml(s){
+      return String(s)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#39;");
+    }
+
+    let isAnimating = false;
+
+    async function startSlotAnimation(finalWinner){
+      isAnimating = true;
+      lockUI();
+
+      const totalIterations = 35;
+      const intervals = generateIntervals(totalIterations, 1.0);
+
+      slotDisplay.classList.add('animating');
+
+      const remainingForDisplay = appState.remainingParticipants.length > 0
+        ? appState.remainingParticipants
+        : appState.allParticipants;
+
+      let iteration = 0;
+
+      await new Promise(resolve => {
+        function tick(){
+          if (iteration < totalIterations - 1){
+            const name = getRandomName(remainingForDisplay);
+            displayName(name, false);
+            iteration++;
+            setTimeout(tick, intervals[iteration]);
+          } else {
+            displayName(finalWinner, true);
+            showConfetti();
+            resolve();
+          }
+        }
+        tick();
+      });
+
+      resultArea.innerHTML = `🎉 <strong>${escapeHtml(finalWinner)}</strong> さん、当選！おめでとう！`;
+      saveData();
+      updateUI();
+
+      try{ navigator.vibrate?.([50, 30, 120]); }catch(_){}
+
+      setTimeout(() => slotDisplay.classList.remove('glow'), 2200);
+
+      isAnimating = false;
+      unlockUI();
+    }
+
+    settingsBtn.addEventListener('click', () => {
+      participantsTextarea.value = (appState.allParticipants || []).join('\n');
+      settingsDialog.showModal();
+    });
+
+    closeDialogBtn.addEventListener('click', () => settingsDialog.close());
+    cancelBtn.addEventListener('click', () => settingsDialog.close());
+
+    settingsDialog.addEventListener('click', (e) => {
+      const rect = settingsDialog.getBoundingClientRect();
+      const inDialog = rect.top <= e.clientY && e.clientY <= rect.bottom
+                    && rect.left <= e.clientX && e.clientX <= rect.right;
+      if (!inDialog) settingsDialog.close();
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const list = normalizeParticipants(participantsTextarea.value);
+      if (list.length === 0){
+        toastShow('参加者が0人です。1人以上入力してね。');
+        return;
+      }
+
+      appState.allParticipants = list;
+      appState.winners = appState.winners.filter(w => appState.allParticipants.includes(w));
+
+      saveData();
+      updateUI();
+      settingsDialog.close();
+      toastShow('保存しました');
+    });
+
+    resetBtn.addEventListener('click', () => {
+      const ok = confirm('当選履歴をリセットしますか?');
+      if (!ok) return;
+
+      appState.winners = [];
+      saveData();
+      updateUI();
+      settingsDialog.close();
+      slotDisplay.textContent = '準備OK';
+      resultArea.innerHTML = '<span>リセット完了。さぁ、もう一回景気よく！</span>';
+      toastShow('抽選をリセットしました');
+    });
+
+    drawBtn.addEventListener('click', async () => {
+      if (isAnimating) return;
+
+      const res = drawWinner();
+      if (res?.error){
+        if (res.done){
+          const ok = confirm(res.error);
+          if (ok){
+            appState.winners = [];
+            saveData();
+            updateUI();
+            slotDisplay.textContent = '準備OK';
+            resultArea.innerHTML = '<span>リセットしました。抽選できます。</span>';
+            toastShow('リセットしました');
+          } else {
+            toastShow('全員当選済み！おつかれさま！');
+          }
+        } else {
+          toastShow(res.error);
+          settingsDialog.showModal();
+        }
+        return;
+      }
+
+      await startSlotAnimation(res.winner);
+    });
+
+    loadData();
+    updateUI();
+  </script>
+</body>
+</html>
